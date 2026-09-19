@@ -1,0 +1,18 @@
+# Secrets
+.env
+
+# Run artifacts (per-run JSON + generated PDFs)
+data/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+*.egg-info/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
