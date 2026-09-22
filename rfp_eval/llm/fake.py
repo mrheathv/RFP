@@ -47,7 +47,10 @@ class FakeProvider:
     ) -> dict[str, Any]:
         self.calls.append({"stage": stage, "model": model, "chars": len(user)})
 
-        questions = _QUESTION_RE.findall(user)
+        # The question list lives in the system prompt (it is the cache prefix);
+        # vendor and criteria markers live in the user message.
+        prompt = f"{system}\n{user}"
+        questions = _QUESTION_RE.findall(prompt)
         vendor_match = _VENDOR_RE.search(user)
         vendor = vendor_match.group(1).strip() if vendor_match else "Sample Vendor"
         vendors = [v.strip() for v in vendor.split("||") if v.strip()] or ["Sample Vendor"]
@@ -55,7 +58,7 @@ class FakeProvider:
         if not categories:
             # Stage 1 assessment and Stage 2 pass the criteria list directly
             # rather than the full question list.
-            criteria = _CRITERIA_RE.search(user)
+            criteria = _CRITERIA_RE.search(prompt)
             if criteria:
                 categories = _unique(
                     [

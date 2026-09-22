@@ -168,9 +168,13 @@ the bill. Two levers, in order:
    stronger model while cutting the bulk-token stage substantially.
 2. **`ANTHROPIC_EFFORT`.** `medium` is often enough for extraction.
 
-Prompt caching is on for Stage 1: the system prompt and question list are
-byte-identical for every vendor in a run, so after the first vendor that prefix
-is served from cache.
+Prompt caching is on for Stage 1. The system prompt carries the question list
+and is byte-identical for every vendor and every chunk in a run, so from the
+second call onward that prefix is served from cache. One caveat: providers have
+a minimum cacheable prefix length (1024+ tokens), so a very short questionnaire
+may fall under it — the request still works, caching just does nothing and costs
+nothing. Check `usage.cache_read_input_tokens` if you want to confirm it is
+taking effect.
 
 ---
 

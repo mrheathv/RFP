@@ -156,3 +156,79 @@ def test_non_json_response_is_an_error():
 def test_json_array_is_rejected():
     with pytest.raises(SchemaError, match="expected a JSON object"):
         parse_json_response("[1, 2, 3]", "stage1")
+
+
+def test_the_question_list_sits_in_the_cacheable_system_prefix():
+    """Stage 1's question list must be in SYSTEM, not USER.
+
+    It is byte-identical for every vendor and every chunk in a run, so it is
+    the stable prompt-cache prefix. In USER it would sit behind the varying
+    chunk text, forfeiting the cache and leaving the system prefix too short
+    to meet the provider's minimum cacheable length.
+    """
+    prompt = load_prompt("stage1_extract")
+    assert "{questions}" in prompt.system
+    assert "{questions}" not in prompt.user
+
+
+def _stage1_system(questions) -> str:
+    system, _ = load_prompt("stage1_extract").render(
+        questions=format_questions(questions),
+        vendor_name="Acme",
+        chunk_index=1,
+        chunk_total=1,
+        chunk_text="x",
+        filename="acme.pdf",
+    )
+    return system
+
+
+def test_the_question_list_is_what_makes_the_prefix_cacheable(questionnaire):
+    """A realistic questionnaire must clear the provider's minimum prefix.
+
+    Below that minimum the request is still valid -- caching just silently does
+    nothing and costs nothing. So this asserts the useful case: a real
+    questionnaire produces a prefix worth caching, and it is the question list
+    that gets it there.
+    """
+    from rfp_eval.models import Question
+
+    realistic = [
+        Question(
+            id=f"Q{i}",
+            category=["Security", "Support", "Pricing", "Compliance"][i % 4],
+            text=(
+                f"Describe in detail your approach to requirement {i}, including "
+                "any certifications, commitments and supporting evidence."
+            ),
+        )
+        for i in range(1, 41)
+    ]
+
+    short_prefix = _stage1_system(questionnaire.questions)
+    long_prefix = _stage1_system(realistic)
+
+    # The question list is genuinely part of the prefix.
+    assert len(long_prefix) > len(short_prefix)
+    # Estimated conservatively at 4 chars/token against the smallest minimum.
+    assert len(long_prefix) / 4 > 1024
+
+
+def test_stage1_system_prompt_is_identical_across_vendors(questionnaire):
+    """The whole point of the prefix: it must not vary per vendor or chunk."""
+    prompt = load_prompt("stage1_extract")
+    questions = format_questions(questionnaire.questions)
+
+    rendered = {
+        prompt.render(
+            questions=questions,
+            vendor_name=vendor,
+            chunk_index=index,
+            chunk_total=3,
+            chunk_text=f"text for {vendor} part {index}",
+            filename=f"{vendor}.pdf",
+        )[0]
+        for vendor in ("Acme", "Beta")
+        for index in (1, 2, 3)
+    }
+    assert len(rendered) == 1

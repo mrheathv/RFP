@@ -136,3 +136,43 @@ def test_partial_write_cannot_corrupt_a_saved_result(tmp_path):
 
     assert not list(store.vendor_dir("acme").glob("*.tmp"))
     assert store.load_vendor_summary("acme") is not None
+
+
+def test_distinct_names_that_slug_alike_get_distinct_slugs():
+    """slugify is not injective, and the slug is a vendor's on-disk identity.
+
+    Without this, "Acme Corp" and "Acme Corp." share a directory: one vendor's
+    evaluation silently overwrites the other's, and Stage 2 then compares a
+    vendor against itself.
+    """
+    from rfp_eval.storage import unique_slugs
+
+    assert unique_slugs(["Acme Corp", "Acme Corp."]) == ["acme-corp", "acme-corp-2"]
+    assert unique_slugs(["Beta Ltd", "beta ltd", "BETA  LTD"]) == [
+        "beta-ltd",
+        "beta-ltd-2",
+        "beta-ltd-3",
+    ]
+
+
+def test_unique_slugs_leaves_already_distinct_names_alone():
+    from rfp_eval.storage import unique_slugs
+
+    assert unique_slugs(["Acme", "Beta", "Gamma"]) == ["acme", "beta", "gamma"]
+
+
+def test_colliding_names_no_longer_overwrite_each_other(tmp_path):
+    from rfp_eval.storage import unique_slugs
+
+    store, manifest = create_run(tmp_path)
+    names = ["Acme Corp", "Acme Corp."]
+    slugs = unique_slugs(names)
+
+    manifest.vendors = [
+        VendorRecord(slug=s, name=n, filename=f"{s}.pdf") for n, s in zip(names, slugs)
+    ]
+    store.save_manifest(manifest)
+    for name, slug in zip(names, slugs):
+        store.save_vendor_summary(slug, VendorSummary(vendor_name=name))
+
+    assert [s.vendor_name for s in store.load_all_summaries()] == names

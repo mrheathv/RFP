@@ -21,7 +21,7 @@ from rfp_eval.parsing import parse_document
 from rfp_eval.pipeline import ProgressEvent, run_pipeline, run_stage2_only
 from rfp_eval.pipeline.orchestrator import VendorInput
 from rfp_eval.pipeline.stage0 import build_questionnaire
-from rfp_eval.storage import RunStore, create_run, list_runs, slugify
+from rfp_eval.storage import RunStore, create_run, list_runs, unique_slugs
 
 st.set_page_config(page_title="RFP Vendor Evaluation", page_icon="📋", layout="wide")
 
@@ -437,9 +437,10 @@ def _run(settings: Settings, uploads, names: list[str], *, resume: bool) -> None
     # Persist the uploads so a resumed run can re-read them without re-uploading.
     vendors: list[VendorInput] = []
     records: list[VendorRecord] = []
-    for upload, name in zip(uploads, names):
+    # Slugs are the on-disk identity of a vendor, so they must be unique even
+    # when two distinct names reduce to the same string.
+    for upload, name, slug in zip(uploads, names, unique_slugs(names)):
         path = store.save_input(upload.name, upload.getvalue())
-        slug = slugify(name)
         vendors.append(VendorInput(name=name, slug=slug, path=path))
         records.append(VendorRecord(slug=slug, name=name, filename=upload.name))
 

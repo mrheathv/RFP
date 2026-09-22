@@ -45,6 +45,30 @@ def slugify(name: str) -> str:
     return slug or "vendor"
 
 
+def unique_slugs(names: list[str]) -> list[str]:
+    """Map vendor names to slugs that are unique *as a set*.
+
+    ``slugify`` alone is not injective: "Acme Corp" and "Acme Corp." both
+    reduce to ``acme-corp``. Since the slug is the directory a vendor's results
+    are written to, a collision silently overwrites one vendor's evaluation
+    with another's -- and Stage 2 then compares a vendor against itself. Later
+    collisions get a numeric suffix.
+    """
+    assigned: list[str] = []
+    used: set[str] = set()
+
+    for name in names:
+        base = slugify(name)
+        slug, suffix = base, 2
+        while slug in used:
+            slug = f"{base}-{suffix}"
+            suffix += 1
+        used.add(slug)
+        assigned.append(slug)
+
+    return assigned
+
+
 def new_run_id() -> str:
     return datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
 
@@ -267,4 +291,5 @@ __all__ = [
     "list_runs",
     "new_run_id",
     "slugify",
+    "unique_slugs",
 ]

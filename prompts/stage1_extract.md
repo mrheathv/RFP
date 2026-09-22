@@ -5,9 +5,16 @@ Called once per chunk of one vendor's document. The model sees the full
 question list but only part of the vendor's response, so it must be explicit
 about what this portion does and does not contain.
 
+Placeholders available in the SYSTEM section:
+  {questions}      -- the canonical question list
+
+  The question list lives in SYSTEM deliberately: it is byte-identical for
+  every vendor and every chunk in a run, which makes it a stable prompt-cache
+  prefix. Moving it into USER would put it behind the varying chunk text and
+  forfeit the cache.
+
 Placeholders available in the USER section:
   {vendor_name}    -- the vendor being evaluated
-  {questions}      -- the canonical question list
   {chunk_index}    -- 1-based index of this chunk
   {chunk_total}    -- total number of chunks for this vendor
   {chunk_text}     -- the vendor response text for this chunk
@@ -50,17 +57,18 @@ Be skeptical of marketing language. "Industry-leading", "seamless", and
 "best-in-class" are not answers -- if a question asked for specifics and the
 vendor supplied adjectives, that is a finding.
 
+These are the questions the organization asked. Map every answer you find onto
+one of these ids; never invent an id that is not listed here.
+
+<questions>
+{questions}
+</questions>
+
 --- USER ---
 <vendor>{vendor_name}</vendor>
 
 You are reading part {chunk_index} of {chunk_total} of this vendor's response,
 from the file `{filename}`.
-
-The organization asked these questions:
-
-<questions>
-{questions}
-</questions>
 
 Here is the vendor's response text. Bracketed prefixes like `[p. 4]` are
 location markers added by the parser -- use them for `source_locator`.

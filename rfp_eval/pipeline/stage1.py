@@ -170,8 +170,9 @@ def run_stage1(
             model=model,
             max_tokens=max_output_tokens,
             stage="stage1_extract",
-            # The system prompt and question list are byte-identical for every
-            # vendor and every chunk in a run -- the ideal cache prefix.
+            # The system prompt carries the question list and is byte-identical
+            # for every vendor and every chunk in a run, so it is a stable cache
+            # prefix worth paying the write cost for once.
             cache_system=True,
         )
         extraction = ChunkExtraction.model_validate(payload)
